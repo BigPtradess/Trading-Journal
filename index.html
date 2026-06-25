@@ -27,15 +27,18 @@ h1{font-size:17px;font-weight:600;color:#fff;letter-spacing:-0.02em}
 .sec-title{font-size:10px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
 .chart-wrap{position:relative;width:100%;height:180px}
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:10px}
+.form-grid-wide{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.form-grid-full{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
 .form-group{display:flex;flex-direction:column;gap:4px}
 .form-group label{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.05em}
-.form-group input,.form-group select{font-size:12px;padding:7px 9px;border-radius:6px;border:1px solid #222;background:#0f0f0f;color:#f0f0f0;width:100%}
+.form-group input,.form-group select,.form-group textarea{font-size:12px;padding:7px 9px;border-radius:6px;border:1px solid #222;background:#0f0f0f;color:#f0f0f0;width:100%;font-family:inherit}
+.form-group textarea{resize:vertical;min-height:54px;line-height:1.5}
 .btn-add{background:#fff;color:#0a0a0a;border:none;padding:8px 20px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
 .btn-add:hover{background:#e5e5e5}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{text-align:left;padding:6px 8px;color:#444;font-weight:500;border-bottom:1px solid #1a1a1a;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
-td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
+td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0;vertical-align:top}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .badge.win{background:#14291a;color:#4ade80}
 .badge.loss{background:#2a1414;color:#f87171}
@@ -43,8 +46,11 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
 .badge.ap{background:#0f1e2e;color:#60a5fa}
 .badge.a{background:#0f2218;color:#4ade80}
 .badge.b{background:#2a1f0a;color:#fbbf24}
+.badge.session{background:#1e1a2e;color:#a78bfa;font-size:10px}
 .del-btn{background:none;border:none;color:#333;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px}
 .del-btn:hover{color:#f87171;background:#2a1414}
+.expand-btn{background:none;border:none;color:#444;cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;transition:color .15s}
+.expand-btn:hover{color:#fff}
 .tabs{display:flex;gap:4px;flex-wrap:wrap}
 .tab{padding:4px 11px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid #222;background:transparent;color:#555}
 .tab.active{background:#1e1e1e;color:#f0f0f0;border-color:#333}
@@ -58,7 +64,7 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
 .cal-nav button{background:none;border:1px solid #222;color:#888;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
 .cal-nav button:hover{border-color:#444;color:#fff}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cal-header{text-align:center;font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
+.cal-header-cell{text-align:center;font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
 .cal-day{background:#0f0f0f;border:1px solid #1a1a1a;border-radius:6px;min-height:62px;padding:6px}
 .cal-day.today{border-color:#333}
 .cal-day.other-month .cal-day-num{color:#2a2a2a}
@@ -70,6 +76,11 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
 .cal-count{font-size:9px;color:#444;margin-top:2px}
 .page{display:none}
 .page.active{display:block}
+.expand-row td{background:#0d0d0d;padding:12px 10px}
+.expand-inner{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.expand-field{display:flex;flex-direction:column;gap:4px}
+.expand-field-label{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.06em}
+.expand-field-val{font-size:12px;color:#aaa;line-height:1.5}
 </style>
 </head>
 <body>
@@ -116,15 +127,35 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
       </div>
     </div>
     <div class="section">
+      <div class="sec-title">Session performance</div>
+      <div class="chart-wrap" style="height:160px"><canvas id="sessionChart" role="img" aria-label="Wins and losses per session">Session chart</canvas></div>
+    </div>
+
+    <div class="section">
       <div class="sec-title" style="margin-bottom:14px">Log a trade</div>
       <div class="form-grid">
         <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
         <div class="form-group"><label>Instrument</label><input type="text" id="f-inst" placeholder="NQ, MNQ..."></div>
+        <div class="form-group"><label>Session</label>
+          <select id="f-session">
+            <option>Asian</option>
+            <option>London</option>
+            <option>New York</option>
+            <option>Overlap</option>
+          </select>
+        </div>
         <div class="form-group"><label>Direction</label><select id="f-dir"><option>Long</option><option>Short</option></select></div>
         <div class="form-group"><label>Result</label><select id="f-res"><option>Win</option><option>Loss</option><option>BE</option><option>BE(TP)</option><option>SL(TP)</option></select></div>
         <div class="form-group"><label>P&L ($)</label><input type="number" id="f-pnl" placeholder="409"></div>
         <div class="form-group"><label>RR achieved</label><input type="number" id="f-rr" step="0.1" placeholder="2.1"></div>
         <div class="form-group"><label>Quality</label><select id="f-qual"><option>A+</option><option>A</option><option>B</option></select></div>
+      </div>
+      <div class="form-grid-wide">
+        <div class="form-group"><label>Rules followed</label><textarea id="f-rules" placeholder="Which rules did you follow or break?"></textarea></div>
+        <div class="form-group"><label>Reason for entry</label><textarea id="f-reason" placeholder="Why did you take this trade?"></textarea></div>
+      </div>
+      <div class="form-grid-full">
+        <div class="form-group"><label>Lesson learned</label><textarea id="f-lesson" placeholder="What would you do differently or repeat next time?"></textarea></div>
       </div>
       <button class="btn-add" onclick="addTrade()">Add trade</button>
     </div>
@@ -141,9 +172,9 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
       <div style="height:6px"></div>
       <div class="cal-grid" id="cal-body"></div>
       <div style="margin-top:1rem;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:#444">
-        <span><span class="leg-dot" style="background:#4ade80;border-radius:50%;display:inline-block;width:6px;height:6px;margin-right:4px"></span>Profitable day</span>
-        <span><span class="leg-dot" style="background:#f87171;border-radius:50%;display:inline-block;width:6px;height:6px;margin-right:4px"></span>Loss day</span>
-        <span><span class="leg-dot" style="background:#444;border-radius:50%;display:inline-block;width:6px;height:6px;margin-right:4px"></span>Break-even</span>
+        <span><span style="background:#4ade80;border-radius:50%;display:inline-block;width:6px;height:6px;margin-right:4px"></span>Profitable day</span>
+        <span><span style="background:#f87171;border-radius:50%;display:inline-block;width:6px;height:6px;margin-right:4px"></span>Loss day</span>
+        <span><span style="background:#444;border-radius:50%;display:inline-block;width:6px;height:6px;margin-right:4px"></span>Break-even</span>
       </div>
     </div>
     <div class="section" style="margin-top:1rem">
@@ -168,13 +199,16 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0}
   </div>
 </div>
 
+<div style="position:fixed;bottom:16px;right:20px;font-size:10px;color:#2a2a2a;letter-spacing:.08em;text-transform:uppercase;pointer-events:none;user-select:none;">made &amp; designed by BIG P</div>
+
 <script>
 let trades=[];
 try{trades=JSON.parse(localStorage.getItem('trading_dash_dark')||'[]')}catch(e){}
 let filter='all';
 let calYear=new Date().getFullYear();
 let calMonth=new Date().getMonth();
-let pnlC,resultC,qualityC;
+let pnlC,resultC,qualityC,sessionC;
+const SESSIONS=['Asian','London','New York','Overlap'];
 
 function save(){try{localStorage.setItem('trading_dash_dark',JSON.stringify(trades))}catch(e){}}
 
@@ -226,6 +260,7 @@ function renderCharts(){
     data:{labels,datasets:[{label:'P&L',data:cumData,borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,0.06)',borderWidth:1.5,pointRadius:3,pointBackgroundColor:'#4ade80',fill:true,tension:0.3}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},color:'#444'},grid:{color:'rgba(255,255,255,0.03)'}},y:{ticks:{font:{size:10},color:'#444',callback:v=>'$'+v},grid:{color:'rgba(255,255,255,0.04)'}}}}
   });
+
   const wins=trades.filter(t=>t.result==='Win').length;
   const losses=trades.filter(t=>t.result==='Loss').length;
   const be=trades.filter(t=>['BE','BE(TP)','SL(TP)'].includes(t.result)).length;
@@ -235,6 +270,7 @@ function renderCharts(){
     data:{labels:['Wins','Losses','BE'],datasets:[{data:[wins||0,losses||0,be||0],backgroundColor:['#4ade80','#f87171','#444'],borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}
   });
+
   const aPlus=trades.filter(t=>t.quality==='A+').length;
   const a=trades.filter(t=>t.quality==='A').length;
   const b=trades.filter(t=>t.quality==='B').length;
@@ -243,6 +279,23 @@ function renderCharts(){
     type:'doughnut',
     data:{labels:['A+','A','B'],datasets:[{data:[aPlus||0,a||0,b||0],backgroundColor:['#60a5fa','#4ade80','#fbbf24'],borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}
+  });
+
+  const sessionWins=SESSIONS.map(s=>trades.filter(t=>t.session===s&&t.result==='Win').length);
+  const sessionLosses=SESSIONS.map(s=>trades.filter(t=>t.session===s&&t.result==='Loss').length);
+  const sessionBE=SESSIONS.map(s=>trades.filter(t=>t.session===s&&['BE','BE(TP)','SL(TP)'].includes(t.result)).length);
+  if(sessionC)sessionC.destroy();
+  sessionC=new Chart(document.getElementById('sessionChart').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:SESSIONS,
+      datasets:[
+        {label:'Wins',data:sessionWins,backgroundColor:'rgba(74,222,128,0.8)',borderRadius:4},
+        {label:'Losses',data:sessionLosses,backgroundColor:'rgba(248,113,113,0.8)',borderRadius:4},
+        {label:'BE',data:sessionBE,backgroundColor:'rgba(68,68,68,0.8)',borderRadius:4}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},color:'#555'},grid:{display:false}},y:{ticks:{font:{size:10},color:'#444',stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}},barPercentage:0.6}
   });
 }
 
@@ -253,13 +306,46 @@ function renderLog(){
   else if(filter==='B')f=trades.filter(t=>t.quality==='B');
   const el=document.getElementById('trade-log');
   if(!f.length){el.innerHTML='<div class="empty">No trades yet — log your first trade above</div>';return}
+
   const rows=[...f].reverse().map(t=>{
     const pc=t.pnl>=0?'#4ade80':'#f87171';
     const rb=t.result==='Win'?`<span class="badge win">Win</span>`:t.result==='Loss'?`<span class="badge loss">Loss</span>`:`<span class="badge be">${t.result}</span>`;
     const qb=t.quality==='A+'?`<span class="badge ap">A+</span>`:t.quality==='A'?`<span class="badge a">A</span>`:`<span class="badge b">B</span>`;
-    return`<tr><td>${t.date}</td><td><strong>${t.instrument||'MNQ'}</strong></td><td>${t.dir}</td><td>${rb}</td><td style="color:${pc};font-weight:600">${t.pnl>=0?'+':''}$${t.pnl.toFixed(2)}</td><td>${t.rr>0?t.rr.toFixed(1)+'R':'—'}</td><td>${qb}</td><td><button class="del-btn" onclick="deleteTrade(${t.id})">✕</button></td></tr>`;
+    const sb=t.session?`<span class="badge session">${t.session}</span>`:'—';
+    const hasNotes=t.rules||t.reason||t.lesson;
+    return`<tr>
+      <td>${t.date}</td>
+      <td><strong>${t.instrument||'MNQ'}</strong></td>
+      <td>${sb}</td>
+      <td>${t.dir}</td>
+      <td>${rb}</td>
+      <td style="color:${pc};font-weight:600">${t.pnl>=0?'+':''}$${t.pnl.toFixed(2)}</td>
+      <td>${t.rr>0?t.rr.toFixed(1)+'R':'—'}</td>
+      <td>${qb}</td>
+      <td>
+        ${hasNotes?`<button class="expand-btn" onclick="toggleExpand(${t.id},this)" title="Show notes">&#9660;</button>`:''}
+        <button class="del-btn" onclick="deleteTrade(${t.id})">✕</button>
+      </td>
+    </tr>
+    <tr class="expand-row" id="expand-${t.id}" style="display:none">
+      <td colspan="9">
+        <div class="expand-inner">
+          ${t.rules?`<div class="expand-field"><div class="expand-field-label">Rules followed</div><div class="expand-field-val">${t.rules}</div></div>`:''}
+          ${t.reason?`<div class="expand-field"><div class="expand-field-label">Reason for entry</div><div class="expand-field-val">${t.reason}</div></div>`:''}
+          ${t.lesson?`<div class="expand-field"><div class="expand-field-label">Lesson learned</div><div class="expand-field-val">${t.lesson}</div></div>`:''}
+        </div>
+      </td>
+    </tr>`;
   }).join('');
-  el.innerHTML=`<table><thead><tr><th>Date</th><th>Instrument</th><th>Dir</th><th>Result</th><th>P&L</th><th>RR</th><th>Quality</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+
+  el.innerHTML=`<table><thead><tr><th>Date</th><th>Instrument</th><th>Session</th><th>Dir</th><th>Result</th><th>P&L</th><th>RR</th><th>Quality</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function toggleExpand(id,btn){
+  const row=document.getElementById('expand-'+id);
+  const open=row.style.display==='table-row';
+  row.style.display=open?'none':'table-row';
+  btn.innerHTML=open?'&#9660;':'&#9650;';
 }
 
 function renderCalendar(){
@@ -268,8 +354,7 @@ function renderCalendar(){
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
   const firstDay=new Date(calYear,calMonth,1).getDay();
   const today=new Date().toISOString().split('T')[0];
-  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  document.getElementById('cal-headers').innerHTML=dayNames.map(d=>`<div class="cal-header">${d}</div>`).join('');
+  document.getElementById('cal-headers').innerHTML=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cal-header-cell">${d}</div>`).join('');
   const byDate={};
   trades.forEach(t=>{
     if(!byDate[t.date])byDate[t.date]={pnl:0,count:0};
@@ -327,16 +412,19 @@ function addTrade(){
     id:Date.now(),
     date,
     instrument:document.getElementById('f-inst').value.trim()||'MNQ',
+    session:document.getElementById('f-session').value,
     dir:document.getElementById('f-dir').value,
     result:document.getElementById('f-res').value,
     pnl:parseFloat(document.getElementById('f-pnl').value)||0,
     rr:parseFloat(document.getElementById('f-rr').value)||0,
-    quality:document.getElementById('f-qual').value
+    quality:document.getElementById('f-qual').value,
+    rules:document.getElementById('f-rules').value.trim(),
+    reason:document.getElementById('f-reason').value.trim(),
+    lesson:document.getElementById('f-lesson').value.trim()
   });
   trades.sort((a,b)=>a.date.localeCompare(b.date));
   save();render();
-  document.getElementById('f-pnl').value='';
-  document.getElementById('f-rr').value='';
+  ['f-pnl','f-rr','f-rules','f-reason','f-lesson'].forEach(id=>document.getElementById(id).value='');
 }
 
 function deleteTrade(id){trades=trades.filter(t=>t.id!==id);save();render()}
@@ -354,6 +442,5 @@ document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
 document.getElementById('f-inst').value='MNQ';
 render();
 </script>
-<div style="position:fixed;bottom:16px;right:20px;font-size:10px;color:#2a2a2a;letter-spacing:.08em;text-transform:uppercase;pointer-events:none;user-select:none;">made &amp; designed by BIG P</div>
 </body>
 </html>
