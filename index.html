@@ -46,7 +46,7 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0;vertical-align:
 .badge.ap{background:#0f1e2e;color:#60a5fa}
 .badge.a{background:#0f2218;color:#4ade80}
 .badge.b{background:#2a1f0a;color:#fbbf24}
-.badge.session{background:#1e1a2e;color:#a78bfa;font-size:10px}
+.badge.time{background:#1e1a2e;color:#a78bfa;font-size:10px}
 .del-btn{background:none;border:none;color:#333;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px}
 .del-btn:hover{color:#f87171;background:#2a1414}
 .expand-btn{background:none;border:none;color:#444;cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;transition:color .15s}
@@ -127,23 +127,16 @@ td{padding:8px 8px;border-bottom:1px solid #141414;color:#d0d0d0;vertical-align:
       </div>
     </div>
     <div class="section">
-      <div class="sec-title">Session performance</div>
-      <div class="chart-wrap" style="height:160px"><canvas id="sessionChart" role="img" aria-label="Wins and losses per session">Session chart</canvas></div>
+      <div class="sec-title">Hourly performance</div>
+      <div class="chart-wrap" style="height:160px"><canvas id="sessionChart" role="img" aria-label="Wins and losses by hour">Hourly chart</canvas></div>
     </div>
 
     <div class="section">
       <div class="sec-title" style="margin-bottom:14px">Log a trade</div>
       <div class="form-grid">
         <div class="form-group"><label>Date</label><input type="date" id="f-date"></div>
+        <div class="form-group"><label>Time</label><input type="time" id="f-session"></div>
         <div class="form-group"><label>Instrument</label><input type="text" id="f-inst" placeholder="NQ, MNQ..."></div>
-        <div class="form-group"><label>Session</label>
-          <select id="f-session">
-            <option>Asian</option>
-            <option>London</option>
-            <option>New York</option>
-            <option>Overlap</option>
-          </select>
-        </div>
         <div class="form-group"><label>Direction</label><select id="f-dir"><option>Long</option><option>Short</option></select></div>
         <div class="form-group"><label>Result</label><select id="f-res"><option>Win</option><option>Loss</option><option>BE</option><option>BE(TP)</option><option>SL(TP)</option></select></div>
         <div class="form-group"><label>P&L ($)</label><input type="number" id="f-pnl" placeholder="409"></div>
@@ -208,7 +201,6 @@ let filter='all';
 let calYear=new Date().getFullYear();
 let calMonth=new Date().getMonth();
 let pnlC,resultC,qualityC,sessionC;
-const SESSIONS=['Asian','London','New York','Overlap'];
 
 function save(){try{localStorage.setItem('trading_dash_dark',JSON.stringify(trades))}catch(e){}}
 
@@ -281,18 +273,21 @@ function renderCharts(){
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}
   });
 
-  const sessionWins=SESSIONS.map(s=>trades.filter(t=>t.session===s&&t.result==='Win').length);
-  const sessionLosses=SESSIONS.map(s=>trades.filter(t=>t.session===s&&t.result==='Loss').length);
-  const sessionBE=SESSIONS.map(s=>trades.filter(t=>t.session===s&&['BE','BE(TP)','SL(TP)'].includes(t.result)).length);
+  // Group trades by hour for the hourly chart
+  const hours=Array.from({length:24},(_,i)=>i);
+  const hourWins=hours.map(h=>trades.filter(t=>t.session&&parseInt(t.session.split(':')[0])===h&&t.result==='Win').length);
+  const hourLosses=hours.map(h=>trades.filter(t=>t.session&&parseInt(t.session.split(':')[0])===h&&t.result==='Loss').length);
+  const activeHours=hours.filter(h=>hourWins[h]+hourLosses[h]>0);
+  const hourLabels=activeHours.map(h=>`${String(h).padStart(2,'0')}:00`);
+
   if(sessionC)sessionC.destroy();
   sessionC=new Chart(document.getElementById('sessionChart').getContext('2d'),{
     type:'bar',
     data:{
-      labels:SESSIONS,
+      labels:hourLabels.length?hourLabels:['No data'],
       datasets:[
-        {label:'Wins',data:sessionWins,backgroundColor:'rgba(74,222,128,0.8)',borderRadius:4},
-        {label:'Losses',data:sessionLosses,backgroundColor:'rgba(248,113,113,0.8)',borderRadius:4},
-        {label:'BE',data:sessionBE,backgroundColor:'rgba(68,68,68,0.8)',borderRadius:4}
+        {label:'Wins',data:activeHours.map(h=>hourWins[h]),backgroundColor:'rgba(74,222,128,0.8)',borderRadius:4},
+        {label:'Losses',data:activeHours.map(h=>hourLosses[h]),backgroundColor:'rgba(248,113,113,0.8)',borderRadius:4}
       ]
     },
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},color:'#555'},grid:{display:false}},y:{ticks:{font:{size:10},color:'#444',stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}},barPercentage:0.6}
@@ -311,12 +306,12 @@ function renderLog(){
     const pc=t.pnl>=0?'#4ade80':'#f87171';
     const rb=t.result==='Win'?`<span class="badge win">Win</span>`:t.result==='Loss'?`<span class="badge loss">Loss</span>`:`<span class="badge be">${t.result}</span>`;
     const qb=t.quality==='A+'?`<span class="badge ap">A+</span>`:t.quality==='A'?`<span class="badge a">A</span>`:`<span class="badge b">B</span>`;
-    const sb=t.session?`<span class="badge session">${t.session}</span>`:'—';
+    const tb=t.session?`<span class="badge time">${t.session}</span>`:'—';
     const hasNotes=t.rules||t.reason||t.lesson;
     return`<tr>
       <td>${t.date}</td>
+      <td>${tb}</td>
       <td><strong>${t.instrument||'MNQ'}</strong></td>
-      <td>${sb}</td>
       <td>${t.dir}</td>
       <td>${rb}</td>
       <td style="color:${pc};font-weight:600">${t.pnl>=0?'+':''}$${t.pnl.toFixed(2)}</td>
@@ -338,7 +333,7 @@ function renderLog(){
     </tr>`;
   }).join('');
 
-  el.innerHTML=`<table><thead><tr><th>Date</th><th>Instrument</th><th>Session</th><th>Dir</th><th>Result</th><th>P&L</th><th>RR</th><th>Quality</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  el.innerHTML=`<table><thead><tr><th>Date</th><th>Time</th><th>Instrument</th><th>Dir</th><th>Result</th><th>P&L</th><th>RR</th><th>Quality</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function toggleExpand(id,btn){
@@ -439,7 +434,6 @@ function setFilter(f,el){
 function render(){renderStats();renderCharts();renderLog()}
 
 document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
-document.getElementById('f-inst').value='MNQ';
 render();
 </script>
 </body>
